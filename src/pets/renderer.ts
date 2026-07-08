@@ -2,7 +2,7 @@
  * 宠物渲染器 - 程序化绘制三种宠物
  * 支持：多情绪表情、眨眼、尾巴摇摆、小动作动画
  */
-import type { AnimationState, PetType, IdleAction } from "./types";
+import type { AnimationState, PetType } from "./types";
 
 // ======================== 绘制工具函数 ========================
 
@@ -152,11 +152,11 @@ export function drawCat(ctx: CanvasRenderingContext2D, state: AnimationState): v
     ctx.beginPath();
     ctx.arc(0, 8, 5, 0.2, Math.PI - 0.2);
     ctx.stroke();
-  } else if (mood === "dragged") {
+  } else if (mood === "dragged" || mood === "surprised") {
     // 被拖：惊讶张嘴
     ctx.fillStyle = "#FF8A80";
     ctx.beginPath();
-    ctx.ellipse(0, 10, 5, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 10, 5, mood === "surprised" ? 7 : 6, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#E57373";
     ctx.beginPath();
@@ -280,7 +280,6 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: AnimationState): v
   ctx.fill();
 
   // 耳朵（垂耳）
-  const earSwing = idleAction?.type === "wag_tail" ? Math.sin(idleAction.progress * Math.PI * 3) * 3 : 0;
   ctx.fillStyle = "#6D4C41";
   ctx.beginPath();
   ctx.ellipse(-20, -5, 8, 18, -0.3, 0, Math.PI * 2);
@@ -315,10 +314,10 @@ export function drawDog(ctx: CanvasRenderingContext2D, state: AnimationState): v
     ctx.beginPath();
     ctx.ellipse(0, 12, 4, 5, 0, 0, Math.PI);
     ctx.fill();
-  } else if (mood === "dragged") {
+  } else if (mood === "dragged" || mood === "surprised") {
     ctx.fillStyle = "#FF8A80";
     ctx.beginPath();
-    ctx.ellipse(0, 12, 5, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 12, 5, mood === "surprised" ? 7 : 6, 0, 0, Math.PI * 2);
     ctx.fill();
   } else if (mood === "sleepy") {
     ctx.beginPath();
@@ -431,6 +430,10 @@ export function drawPenguin(ctx: CanvasRenderingContext2D, state: AnimationState
     ctx.lineTo(0, 8);
     ctx.closePath();
     ctx.fill();
+  } else if (mood === "surprised" || mood === "dragged") {
+    ctx.beginPath();
+    ctx.ellipse(0, 7, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
   } else {
     ctx.beginPath();
     ctx.moveTo(-4, 4);
@@ -461,6 +464,11 @@ export function drawPet(
   type: PetType,
   state: AnimationState
 ): void {
+  const stretch = state.idleAction?.type === "stretch"
+    ? Math.sin(state.idleAction.progress * Math.PI)
+    : 0;
+  ctx.save();
+  ctx.scale(1 + stretch * 0.1, 1 - stretch * 0.08);
   switch (type) {
     case "cat":
       drawCat(ctx, state);
@@ -472,4 +480,5 @@ export function drawPet(
       drawPenguin(ctx, state);
       break;
   }
+  ctx.restore();
 }

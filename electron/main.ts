@@ -6,11 +6,9 @@ import {
   nativeImage,
   ipcMain,
   screen,
-  globalShortcut,
 } from "electron";
 import * as path from "path";
 
-// 开发模式判断
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
@@ -24,21 +22,20 @@ function createPetWindow(): void {
     height: 200,
     x: screenWidth - 220,
     y: 100,
-    frame: false,           // 无边框
-    transparent: true,       // 透明背景
-    alwaysOnTop: true,       // 窗口置顶
-    skipTaskbar: true,       // 不在任务栏显示
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
     resizable: false,
     hasShadow: false,
-    type: "toolbar",         // 在 Windows 上确保置顶
+    type: "toolbar",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
-  // 加载页面
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools({ mode: "detach" });
@@ -46,7 +43,6 @@ function createPetWindow(): void {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  // 设置窗口不可被大多数方式聚焦，但允许鼠标事件
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   mainWindow.on("closed", () => {
@@ -55,7 +51,6 @@ function createPetWindow(): void {
 }
 
 function createTray(): void {
-  // 创建一个 16x16 的托盘图标（使用简单的 1x1 像素占位，后续替换为实际图标）
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
 
@@ -81,7 +76,6 @@ function createTray(): void {
     {
       label: "日程管理",
       click: () => {
-        // TODO: 打开日程窗口
         if (mainWindow) {
           mainWindow.webContents.send("navigate", "calendar");
           mainWindow.show();
@@ -92,7 +86,6 @@ function createTray(): void {
     {
       label: "待办事项",
       click: () => {
-        // TODO: 打开待办窗口
         if (mainWindow) {
           mainWindow.webContents.send("navigate", "todos");
           mainWindow.show();
@@ -139,22 +132,19 @@ function createTray(): void {
   });
 }
 
-// IPC 处理：窗口拖拽
-ipcMain.on("window-drag", (event, { deltaX, deltaY }) => {
+ipcMain.on("window-drag", (_event, { deltaX, deltaY }) => {
   if (mainWindow) {
     const [x, y] = mainWindow.getPosition();
     mainWindow.setPosition(x + deltaX, y + deltaY);
   }
 });
 
-// IPC 处理：设置鼠标穿透
 ipcMain.on("set-ignore-mouse-events", (_event, ignore: boolean) => {
   if (mainWindow) {
     mainWindow.setIgnoreMouseEvents(ignore, { forward: true });
   }
 });
 
-// IPC 处理：获取窗口位置
 ipcMain.handle("get-window-position", () => {
   if (mainWindow) {
     return mainWindow.getPosition();
@@ -174,9 +164,7 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  // 在 macOS 上不退出，Windows/Linux 上退出
   if (process.platform !== "darwin") {
-    // 不自动退出，托盘保持运行
   }
 });
 

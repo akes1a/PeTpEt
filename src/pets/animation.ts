@@ -4,8 +4,6 @@
 import type {
   AnimationState,
   PetMood,
-  IdleAction,
-  HeartEffect,
 } from "./types";
 import { IDLE_ACTIONS } from "./types";
 
@@ -70,12 +68,12 @@ export function updateAnimation(
       state.moodTransition = 1;
       state.currentMood = state.targetMood;
     }
-  } else {
+  } else if (state.currentMood !== "sleepy") {
     state.moodTransition = Math.max(0, state.moodTransition - dt / 2000); // 自动回到 idle
   }
 
   // 自动回到 idle
-  if (state.currentMood !== "idle" && state.moodTransition < 0.01) {
+  if (state.currentMood !== "idle" && state.currentMood !== "sleepy" && state.moodTransition < 0.01) {
     state.targetMood = "idle";
   }
 
@@ -144,16 +142,23 @@ export function updateAnimation(
   // 爱心特效更新
   state.hearts = state.hearts.filter((h) => {
     h.life += dt / 1200; // 1.2 秒生命周期
-    h.y -= h.vy * dt / 16;
-    h.vy *= 0.98;
+    // x/y are normalized canvas coordinates, so velocity is normalized units/sec.
+    // The old `/ 16` advanced hearts by 1-3 full canvas units every frame,
+    // making them disappear immediately after being spawned.
+    h.y -= h.vy * dt / 1000;
+    h.vy *= Math.pow(0.98, dt / 16);
     h.opacity = 1 - h.life;
     h.size = h.size * (1 + dt / 2000);
     return h.life < 1;
   });
 
   // 视线跟踪（平滑）
-  const targetLookX = Math.max(-1, Math.min(1, mouseX * 2));
-  const targetLookY = Math.max(-1, Math.min(1, mouseY * 2));
+  let targetLookX = Math.max(-1, Math.min(1, mouseX * 2));
+  let targetLookY = Math.max(-1, Math.min(1, mouseY * 2));
+  if (state.idleAction?.type === "look_around") {
+    targetLookX = Math.sin(state.idleAction.progress * Math.PI * 2);
+    targetLookY = Math.sin(state.idleAction.progress * Math.PI * 4) * 0.35;
+  }
   state.lookAtX += (targetLookX - state.lookAtX) * dt / 200;
   state.lookAtY += (targetLookY - state.lookAtY) * dt / 200;
 }
@@ -185,7 +190,7 @@ export function spawnHeart(state: AnimationState, x: number, y: number): void {
     life: 0,
     size: 8 + Math.random() * 8,
     opacity: 1,
-    vy: 1 + Math.random() * 2,
+    vy: 0.45 + Math.random() * 0.35,
   });
 }
 

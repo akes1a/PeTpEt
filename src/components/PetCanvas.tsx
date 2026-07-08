@@ -11,133 +11,132 @@ import {
 import type { AnimationState, PetType } from "../pets";
 import "./PetCanvas.css";
 
-/**
- * PetCanvas - 桌面宠物主组件
- *
- * 交互能力：
- * - 点击：弹跳 + 爱心 + 开心表情
- * - 双击：大量爱心 + 惊喜表情
- * - 拖拽：惊恐表情 + 惯性释放
- * - 悬停：视线跟随鼠标
- * - 闲置30秒：自动打盹
- * - 随机小动作：眨眼、摇尾、歪头、打哈欠、伸懒腰
- * - 右键：切换宠物菜单
- */
+const PET_TYPES: PetType[] = ["cat", "dog", "penguin"];
+const DRAG_THRESHOLD = 8;
+
 const PetCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [petType, setPetType] = useState<PetType>(() => {
-    return (localStorage.getItem("petpet-type") as PetType) || "cat";
+    const savedType = localStorage.getItem("petpet-type");
+    return PET_TYPES.includes(savedType as PetType) ? savedType as PetType : "cat";
   });
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
 
-  // 动画引擎引用
   const animRef = useRef<AnimationState>(createAnimationState());
   const lastInteractionRef = useRef<number>(0);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const petTypeRef = useRef<PetType>(petType);
 
-  // 拖拽状态
+  petTypeRef.current = petType;
+
   const dragRef = useRef({
     isDragging: false,
     startX: 0,
     startY: 0,
     lastX: 0,
     lastY: 0,
-    lastTime: 0,
     moved: false,
+    lastClickTime: 0,
   });
 
-  // ======================== 动画循环 ========================
-  useEffect(() => {
-    const animate = (timestamp: number) => {
-      const dt = lastTimeRef.current ? timestamp - lastTimeRef.current : 16;
-      lastTimeRef.current = timestamp;
+  const animationLoop = useCallback((timestamp: number) => {
+    const dt = lastTimeRef.current ? timestamp - lastTimeRef.current : 16;
+    lastTimeRef.current = timestamp;
+    const clampedDt = Math.min(dt, 50);
 
-      // 限制最大 dt 防止切 tab 后跳帧
-      const clampedDt = Math.min(dt, 50);
-
-      const state = animRef.current;
-      updateAnimation(
-        state,
-        clampedDt,
-        lastInteractionRef.current,
-        mouseRef.current.x,
-        mouseRef.current.y
+    const state = animRef.current;
+    if (!state.isDragging && window.petpet &&
+        (Math.abs(state.dragVelocityX) > 0.5 || Math.abs(state.dragVelocityY) > 0.5)) {
+      window.petpet.dragWindow(
+        Math.round(state.dragVelocityX),
+        Math.round(state.dragVelocityY)
       );
+      const friction = Math.pow(0.88, clampedDt / 16);
+      state.dragVelocityX *= friction;
+      state.dragVelocityY *= friction;
+    }
+    updateAnimation(
+      state,
+      clampedDt,
+      lastInteractionRef.current,
+      mouseRef.current.x,
+      mouseRef.current.y
+    );
 
-      // 绘制
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.save();
-          ctx.translate(canvas.width / 2, canvas.height / 2 + state.bounceOffset);
-          ctx.scale(1 + state.breathPhase, 1 + state.breathPhase);
-          drawPet(ctx, petType, state);
-          ctx.restore();
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2 + state.bounceOffset);
+        ctx.scale(1 + state.breathPhase, 1 + state.breathPhase);
+        drawPet(ctx, petTypeRef.current, state);
+        ctx.restore();
 
-          // 绘制爱心特效
-          for (const heart of state.hearts) {
-            drawHeartEffect(ctx, heart, canvas.width / 2, canvas.height / 2);
-          }
+        for (const heart of state.hearts) {
+          drawHeartEffect(ctx, heart, canvas.width / 2, canvas.height / 2);
+        }
 
-          // 打盹 Zzz
-          if (state.currentMood === "sleepy" && state.moodTransition > 0.8) {
-            drawSleepZ(ctx, canvas.width / 2, canvas.height / 2, state.time);
-          }
+        if (state.currentMood === "sleepy" && state.moodTransition > 0.8) {
+          drawSleepZ(ctx, canvas.width / 2, canvas.height / 2, state.time);
         }
       }
+    }
 
-      rafRef.current = requestAnimationFrame(animate);
-    };
+    rafRef.current = requestAnimationFrame(animationLoop);
+  }, []);
 
-    rafRef.current = requestAnimationFrame(animate);
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(animationLoop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [petType]);
+  }, [animationLoop]);
 
-  // ======================== 鼠标交互 ========================
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      const state = animRef.current;
-      const drag = dragRef.current;
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const state = animRef.current;
+    const drag = dragRef.current;
 
-      // 点击位置（相对于 canvas 中心）
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        mouseRef.current = {
-          x: (e.clientX - rect.left - rect.width / 2) / (rect.width / 2),
-          y: (e.clientY - rect.top - rect.height / 2) / (rect.height / 2),
-        };
-      }
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = {
+        x: (e.clientX - rect.left - rect.width / 2) / (rect.width / 2),
+        y: (e.clientY - rect.top - rect.height / 2) / (rect.height / 2),
+      };
+    }
 
-      // 开始拖拽
-      drag.isDragging = true;
-      drag.startX = e.screenX;
-      drag.startY = e.screenY;
-      drag.lastX = e.screenX;
-      drag.lastY = e.screenY;
-      drag.lastTime = performance.now();
-      drag.moved = false;
+    drag.isDragging = true;
+    drag.startX = e.screenX;
+    drag.startY = e.screenY;
+    drag.lastX = e.screenX;
+    drag.lastY = e.screenY;
+    drag.moved = false;
+    state.dragVelocityX = 0;
+    state.dragVelocityY = 0;
 
-      // 记录交互时间
-      lastInteractionRef.current = state.time;
+    lastInteractionRef.current = state.time;
 
-      // 如果宠物在打盹，唤醒
-      if (state.currentMood === "sleepy") {
-        state.targetMood = "idle";
-      }
+    if (state.currentMood === "sleepy") {
+      state.targetMood = "idle";
+    }
 
-      setContextMenu(null);
-    },
-    []
-  );
+    setMenuPos(null);
+  }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = {
+        x: (e.clientX - rect.left - rect.width / 2) / (rect.width / 2),
+        y: (e.clientY - rect.top - rect.height / 2) / (rect.height / 2),
+      };
+    }
+
     const drag = dragRef.current;
     if (!drag.isDragging) return;
 
@@ -145,67 +144,59 @@ const PetCanvas: React.FC = () => {
     const dy = e.screenY - drag.lastY;
     drag.lastX = e.screenX;
     drag.lastY = e.screenY;
-    drag.lastTime = performance.now();
 
-    if (Math.abs(e.screenX - drag.startX) > 3 || Math.abs(e.screenY - drag.startY) > 3) {
+    if (Math.sqrt(
+      (e.screenX - drag.startX) ** 2 + (e.screenY - drag.startY) ** 2
+    ) > DRAG_THRESHOLD) {
       drag.moved = true;
     }
 
-    if (drag.moved && window.petpet) {
-      window.petpet.dragWindow(dx, dy);
+    if (drag.moved) {
+      window.petpet?.dragWindow(dx, dy);
       triggerDrag(animRef.current, dx, dy);
     }
   }, []);
 
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent) => {
-      const drag = dragRef.current;
-      const state = animRef.current;
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    const drag = dragRef.current;
+    const state = animRef.current;
 
-      if (drag.isDragging && !drag.moved) {
-        // 这是一次点击，不是拖拽
-        triggerBounce(state);
+    const totalDist = Math.sqrt(
+      (e.screenX - drag.startX) ** 2 + (e.screenY - drag.startY) ** 2
+    );
 
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const rect = canvas.getBoundingClientRect();
-          const cx = e.clientX - rect.left - rect.width / 2;
-          const cy = e.clientY - rect.top - rect.height / 2;
-          // 在宠物头顶生成爱心
-          spawnHeart(state, cx / (rect.width / 2), (cy - 40) / (rect.height / 2));
-          spawnHeart(state, (cx + 15) / (rect.width / 2), (cy - 50) / (rect.height / 2));
-        }
+    if (drag.isDragging && totalDist < DRAG_THRESHOLD) {
+      triggerBounce(state);
 
-        // 检测双击
-        const now = performance.now();
-        const lastClick = (drag as any).lastClickTime || 0;
-        if (now - lastClick < 400) {
-          // 双击！
-          state.targetMood = "surprised";
-          const canvas = canvasRef.current;
-          if (canvas) {
-            const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < 5; i++) {
-              spawnHeart(
-                state,
-                (Math.random() - 0.5) * 1.5,
-                (-1 - Math.random()) * 1.2
-              );
-            }
-          }
-        }
-        (drag as any).lastClickTime = now;
-      } else {
-        releaseDrag(state);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left - rect.width / 2;
+        const cy = e.clientY - rect.top - rect.height / 2;
+        spawnHeart(state, cx / (rect.width / 2), (cy - 40) / (rect.height / 2));
+        spawnHeart(state, (cx + 15) / (rect.width / 2), (cy - 50) / (rect.height / 2));
       }
 
-      drag.isDragging = false;
-      drag.moved = false;
-    },
-    []
-  );
+      const now = performance.now();
+      if (now - drag.lastClickTime < 400) {
+        state.targetMood = "surprised";
+        for (let i = 0; i < 6; i++) {
+          spawnHeart(
+            state,
+            (Math.random() - 0.5) * 1.5,
+            (-1 - Math.random()) * 1.2
+          );
+        }
+      }
+      drag.lastClickTime = now;
+    } else {
+      releaseDrag(state);
+    }
 
-  // 鼠标悬停视线跟踪
+    drag.isDragging = false;
+    drag.moved = false;
+  }, []);
+
   const handleMouseEnter = useCallback((e: React.MouseEvent) => {
     window.petpet?.setIgnoreMouseEvents(false);
     const canvas = canvasRef.current;
@@ -219,32 +210,45 @@ const PetCanvas: React.FC = () => {
   }, []);
 
   const handleMouseLeavePet = useCallback(() => {
-    window.petpet?.setIgnoreMouseEvents(true);
-    mouseRef.current = { x: 0, y: 0 };
-  }, []);
+    if (!menuPos && !dragRef.current.isDragging) {
+      window.petpet?.setIgnoreMouseEvents(true);
+    }
+    if (!dragRef.current.isDragging) {
+      mouseRef.current = { x: 0, y: 0 };
+    }
+  }, [menuPos]);
 
-  // ======================== 右键菜单 ========================
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    e.stopPropagation();
+    const menuW = 120;
+    const menuH = 110;
+    const winW = 200;
+    const winH = 200;
+    let mx = e.clientX;
+    let my = e.clientY;
+    if (mx + menuW > winW) mx = winW - menuW - 4;
+    if (my + menuH > winH) my = winH - menuH - 4;
+    mx = Math.max(4, mx);
+    my = Math.max(4, my);
+    setMenuPos({ x: mx, y: my });
   }, []);
 
-  const switchPet = useCallback((type: PetType) => {
+  const switchPet = useCallback((e: React.MouseEvent, type: PetType) => {
+    e.stopPropagation();
     setPetType(type);
     localStorage.setItem("petpet-type", type);
-    setContextMenu(null);
+    setMenuPos(null);
     lastInteractionRef.current = animRef.current.time;
+    window.petpet?.setIgnoreMouseEvents(true);
   }, []);
 
-  useEffect(() => {
-    const handler = () => setContextMenu(null);
-    if (contextMenu) {
-      window.addEventListener("click", handler);
-      return () => window.removeEventListener("click", handler);
-    }
-  }, [contextMenu]);
+  const closeMenu = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuPos(null);
+    window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
 
-  // 鼠标穿透
   useEffect(() => {
     window.petpet?.setIgnoreMouseEvents(true);
     return () => {
@@ -259,7 +263,6 @@ const PetCanvas: React.FC = () => {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
       onContextMenu={handleContextMenu}
     >
       <canvas
@@ -271,30 +274,32 @@ const PetCanvas: React.FC = () => {
         onMouseLeave={handleMouseLeavePet}
       />
 
-      {contextMenu && (
+      {menuPos && (
         <div
-          className="context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="menu-backdrop"
+          onMouseDown={closeMenu}
+          onContextMenu={(e) => e.preventDefault()}
         >
-          <div className="menu-title">选择宠物</div>
-          <button className={petType === "cat" ? "active" : ""} onClick={() => switchPet("cat")}>
-            🐱 猫咪
-          </button>
-          <button className={petType === "dog" ? "active" : ""} onClick={() => switchPet("dog")}>
-            🐶 小狗
-          </button>
-          <button className={petType === "penguin" ? "active" : ""} onClick={() => switchPet("penguin")}>
-            🐧 企鹅
-          </button>
-          <hr />
-          <button onClick={() => setContextMenu(null)}>关闭</button>
+          <div
+            className="context-menu"
+            style={{ left: menuPos.x, top: menuPos.y }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {PET_TYPES.map((t) => (
+              <button
+                key={t}
+                className={petType === t ? "active" : ""}
+                onMouseDown={(e) => switchPet(e, t)}
+              >
+                {t === "cat" ? "猫咪" : t === "dog" ? "小狗" : "企鹅"}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 };
-
-// ======================== 特效绘制 ========================
 
 function drawHeartEffect(
   ctx: CanvasRenderingContext2D,
@@ -307,11 +312,10 @@ function drawHeartEffect(
   const s = heart.size;
 
   ctx.save();
-  ctx.globalAlpha = heart.opacity;
+  ctx.globalAlpha = Math.max(0, heart.opacity);
   ctx.fillStyle = "#FF5252";
   ctx.translate(px, py);
 
-  // 心形路径
   ctx.beginPath();
   ctx.moveTo(0, s * 0.3);
   ctx.bezierCurveTo(-s * 0.5, -s * 0.2, -s * 0.5, -s * 0.7, 0, -s);

@@ -6,9 +6,9 @@
   "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "dev:electron": "npm run build:electron && concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
-    "build:electron": "tsc -p electron/tsconfig.json && ren dist-electron\\*.js *.cjs",
+    "build:electron": "tsc -p electron/tsconfig.json && node scripts/rename-electron.cjs",
     "build:all": "npm run build && npm run build:electron",
     "preview": "vite preview",
     "lint": "oxlint",
@@ -19,22 +19,10 @@
   "build": {
     "appId": "com.petpet.app",
     "productName": "PetPet",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "resources/**/*"
-    ],
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "dist-electron/**/*", "resources/**/*"],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
-      "icon": "resources/icon.ico"
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
     },
     "nsis": {
       "oneClick": false,
@@ -42,14 +30,8 @@
       "createDesktopShortcut": true,
       "shortcutName": "PetPet"
     },
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.utilities"
-    },
-    "linux": {
-      "target": ["AppImage", "deb"],
-      "category": "Utility"
-    }
+    "mac": { "target": "dmg", "category": "public.app-category.utilities" },
+    "linux": { "target": ["AppImage", "deb"], "category": "Utility" }
   },
   "dependencies": {
     "react": "^19.2.7",

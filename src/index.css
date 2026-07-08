@@ -1,21 +1,2 @@
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: transparent !important;
-}
-
-/* 确保整个窗口透明 */
-body {
-  -webkit-app-region: no-drag;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei",
-    sans-serif;
-}
+  margin: 0
