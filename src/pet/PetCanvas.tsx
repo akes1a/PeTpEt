@@ -263,7 +263,9 @@ const PetCanvas: React.FC = () => {
   const closeMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuPos(null);
-    window.petpet?.setIgnoreMouseEvents(true);
+    // 菜单消失后鼠标仍在窗口内，不会重新触发 canvas mouseenter；
+    // 保持接收鼠标事件，避免宠物卡在穿透状态。
+    window.petpet?.setIgnoreMouseEvents(false);
   }, []);
 
   useEffect(() => {
