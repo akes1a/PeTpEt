@@ -1,0 +1,245 @@
+.todos {
+  min-height: 100%;
+  padding: 18px 18px 10px;
+  display: flex;
+  flex-direction: column;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  color: #26303e;
+}
+
+/* ---------- 头部 ---------- */
+.todos-header {
+  margin-bottom: 12px;
+}
+
+.todos-header h1 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.todos-subtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #8a93a6;
+}
+
+/* ---------- 新建输入 ---------- */
+.todo-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.todo-add input,
+.todo-edit-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid #d3daea;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #ffffff;
+  color: #26303e;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.todo-add input:focus,
+.todo-edit-form input:focus {
+  border-color: #5b8def;
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.15);
+}
+
+.todo-add button,
+.todo-edit-form button {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #5b8def;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.todo-add button:hover:not(:disabled) {
+  background: #4778e0;
+}
+
+.todo-add button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.todo-edit-form button.ghost {
+  background: transparent;
+  border: 1px solid #d3daea;
+  color: #5b6472;
+}
+
+.todo-edit-form button.ghost:hover {
+  background: #eef1f8;
+}
+
+/* ---------- 列表 ---------- */
+.todo-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+}
+
+.todo-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.todo-list::-webkit-scrollbar-thumb {
+  background: #c9d2e2;
+  border-radius: 3px;
+}
+
+.todo-empty {
+  padding: 26px 10px;
+  text-align: center;
+  color: #a7b0c2;
+  font-size: 13px;
+  border: 1px dashed #d9dfec;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e3e7f0;
+  border-radius: 10px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.todo-item:hover {
+  border-color: #c6d2ea;
+  box-shadow: 0 2px 8px rgba(40, 60, 110, 0.06);
+}
+
+.todo-circle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #b9c4d9;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.todo-circle:hover {
+  border-color: #5b8def;
+  transform: scale(1.08);
+}
+
+.todo-item.done .todo-circle {
+  background: #5b8def;
+  border-color: #5b8def;
+}
+
+.todo-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  word-break: break-word;
+  cursor: context-menu;
+}
+
+.todo-item.done .todo-text {
+  color: #a0a9bb;
+  text-decoration: line-through;
+}
+
+/* ---------- 行内编辑 ---------- */
+.todo-edit-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.todo-edit-form input {
+  padding: 7px 10px;
+}
+
+.todo-edit-form button {
+  padding: 7px 12px;
+  font-size: 12.5px;
+}
+
+/* ---------- 页脚 ---------- */
+.todos-footer {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: #b0b8c8;
+}
+
+/* ---------- 右键菜单 ---------- */
+.ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  width: 132px;
+  background: rgba(28, 32, 42, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+}
+
+.ctx-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.ctx-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ctx-menu button.danger {
+  color: #ff9c9c;
+}
+
+.ctx-menu button.danger:hover {
+  background: rgba(255, 100, 100, 0.18);
+}

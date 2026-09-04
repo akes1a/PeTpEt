@@ -1,0 +1,22 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* 控制面板窗口:普通窗口,需要不透明、可滚动的底色 */
+html.view-panel,
+html.view-panel body,
+html.view-panel #root {
+  background: #f4f6fb;
+  overflow: auto;
+}

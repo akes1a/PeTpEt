@@ -21,24 +21,28 @@
 
 ```
 petpet/
-├── electron/                  # Electron 主进程
-│   ├── main.ts               # 窗口管理（透明悬浮）+ 系统托盘 + IPC
-│   ├── preload.ts            # contextBridge 安全桥接层
+├── electron/                  # 程序本体（主进程）
+│   ├── main.ts               # 生命周期/窗口/托盘/IPC/单实例锁
+│   ├── preload.ts            # contextBridge 安全桥接（统一配置 API）
+│   ├── config.ts             # 全局配置持久化（userData/config.json）
+│   ├── autostart.ts          # 系统开机自启封装
+│   ├── todos.ts              # 纯文本待办持久化（userData/todos.json）
 │   └── tsconfig.json
 ├── src/                       # 渲染进程（React 前端）
-│   ├── pets/                  # 🎨 宠物引擎
-│   │   ├── types.ts          # 类型定义 + 动画状态机
-│   │   ├── animation.ts      # 动画引擎（物理模拟、小动作调度）
-│   │   ├── renderer.ts       # 三种宠物程序化绘制（猫/狗/企鹅）
-│   │   └── index.ts
-│   ├── components/
-│   │   ├── PetCanvas.tsx      # 宠物主组件（交互 + 事件绑定）
+│   ├── core/                 # 程序本体（渲染壳）
+│   │   ├── main.tsx          # 入口：按 ?view= 分发窗口用途
+│   │   ├── App.tsx           # pet / panel 视图分发
+│   │   ├── useConfig.ts      # 配置订阅 Hook（跨窗口实时同步）
+│   │   └── index.css
+│   ├── pet/                  # 🎨 宠物动态
+│   │   ├── engine/           # 状态机/动画/程序化绘制（types/animation/renderer）
+│   │   ├── PetCanvas.tsx     # 宠物主组件（交互 + 右键菜单）
 │   │   └── PetCanvas.css
-│   ├── hooks/                 # 自定义 Hook（预留）
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css
+│   └── features/             # 🧩 附带功能
+│       ├── control-panel/    # 控制面板（形象切换/后台运行/开机自启）
+│       └── todos/            # 待办事项窗口（v1 纯文本）
 ├── resources/                 # 图标等静态资源
+├── scripts/rename-electron.cjs # 主进程多模块 .cjs 输出处理
 ├── package.json               # 依赖 + electron-builder 配置
 └── vite.config.ts
 ```
@@ -51,10 +55,13 @@ petpet/
 - [x] Electron + React + Vite + TypeScript 项目初始化
 - [x] 透明无边框悬浮窗口（`transparent: true, frame: false`）
 - [x] 窗口置顶 + 任务栏隐藏（`alwaysOnTop, skipTaskbar`）
-- [x] 系统托盘 + 右键菜单（显示/隐藏/日程/待办/Papers/设置/退出）
-- [x] IPC 安全桥接（contextBridge）
+- [x] 系统托盘 + 菜单（显示/隐藏宠物、控制面板、开机自启、退出）
+- [x] 单实例锁：重复启动 exe 只聚焦已有实例，不产生第二只宠物
+- [x] 后台运行语义：开启 = 隐藏宠物/关面板后托盘常驻；关闭 = 无可见窗口即退出
+- [x] IPC 安全桥接（contextBridge）+ 全局配置 API（主进程统一持有并持久化）
 - [x] electron-builder 打包配置（Win/Mac/Linux）
 - [x] 构建链路验证（`npm run build:all` 通过）
+- [x] 附带功能入口：每日论文（系统浏览器打开网页）、待办事项（独立窗口）
 
 #### A1-A5 - 宠物核心系统
 - [x] **A1** - 透明悬浮窗口（含点击穿透）
@@ -67,20 +74,21 @@ petpet/
   - 闲置 30 秒自动打盹（缩身 + Zzz 漂浮）
   - 拖拽惯性释放
 - [x] **A4** - 鼠标拖拽移动窗口
-- [x] **A5** - 右键菜单切换宠物 + 存储用户偏好（localStorage）
+- [x] **A5** - 宠物右键菜单：每日论文 / 待办事项 / 控制面板 / 退出（形象切换已移入控制面板）
 
-### Phase 2: 日程与待办 ⏳ 待开始
+### Phase 2: 日程与待办 🚧 进行中（待办 v1 已完成，日程未开始）
 
 #### B1 - 本地数据存储
+> v1 说明：待办当前用轻量 JSON 存储于 userData/todos.json（纯文本、零原生依赖），SQLite 规划保留给日程 / 完整版待办。
 - [ ] SQLite 数据库初始化（better-sqlite3）
 - [ ] 日程表 schema：标题、时间、提醒设置、备注
 - [ ] 待办表 schema：标题、截止日期、优先级、完成状态
 - [ ] 用户偏好表：宠物类型、设置项
 
 #### B2 - 待办面板
-- [ ] 独立窗口（从托盘或宠物右键打开）
-- [ ] 待办 CRUD：创建、编辑、删除、标记完成
-- [ ] 列表视图 + 按优先级/日期排序
+- [x] 独立窗口（托盘 / 宠物右键打开）
+- [x] 纯文本 CRUD：新建 / 点击圆圈勾选 / 右键编辑文字 / 右键删除
+- [ ] 列表视图增强：按优先级/日期排序
 - [ ] 拖拽排序
 
 #### B3 - 日程面板

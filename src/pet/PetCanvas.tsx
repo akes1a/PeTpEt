@@ -7,30 +7,32 @@ import {
   triggerDrag,
   releaseDrag,
   spawnHeart,
-} from "../pets";
-import type { AnimationState, PetType } from "../pets";
+} from "./engine";
+import type { AnimationState, PetType } from "./engine";
+import { useConfig } from "../core/useConfig";
 import "./PetCanvas.css";
 
-const PET_TYPES: PetType[] = ["cat", "dog", "penguin"];
 const DRAG_THRESHOLD = 8;
 
 const PetCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [petType, setPetType] = useState<PetType>(() => {
-    const savedType = localStorage.getItem("petpet-type");
-    return PET_TYPES.includes(savedType as PetType) ? savedType as PetType : "cat";
-  });
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  // 全局配置由主进程统一持有(形象/后台运行/自启),跨窗口实时同步
+  const config = useConfig();
 
   const animRef = useRef<AnimationState>(createAnimationState());
   const lastInteractionRef = useRef<number>(0);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
-  const petTypeRef = useRef<PetType>(petType);
+  const petTypeRef = useRef<PetType>("cat");
 
-  petTypeRef.current = petType;
+  // 形象切换(右键菜单 / 控制面板)即时生效
+  useEffect(() => {
+    petTypeRef.current = config.petType;
+  }, [config.petType]);
 
   const dragRef = useRef({
     isDragging: false,
@@ -222,7 +224,7 @@ const PetCanvas: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     const menuW = 120;
-    const menuH = 110;
+    const menuH = 148;
     const winW = 200;
     const winH = 200;
     let mx = e.clientX;
@@ -234,13 +236,28 @@ const PetCanvas: React.FC = () => {
     setMenuPos({ x: mx, y: my });
   }, []);
 
-  const switchPet = useCallback((e: React.MouseEvent, type: PetType) => {
-    e.stopPropagation();
-    setPetType(type);
-    localStorage.setItem("petpet-type", type);
+  // 附带功能入口(每日论文走系统浏览器,待办事项另开窗口)
+  const openDailyPapers = useCallback(() => {
     setMenuPos(null);
-    lastInteractionRef.current = animRef.current.time;
+    window.petpet?.openDailyPapers();
     window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
+
+  const openTodosWindow = useCallback(() => {
+    setMenuPos(null);
+    window.petpet?.openTodos();
+    window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
+
+  const openControlPanel = useCallback(() => {
+    setMenuPos(null);
+    window.petpet?.openControlPanel();
+    window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
+
+  const quitApp = useCallback(() => {
+    setMenuPos(null);
+    window.petpet?.quit();
   }, []);
 
   const closeMenu = useCallback((e: React.MouseEvent) => {
@@ -285,15 +302,11 @@ const PetCanvas: React.FC = () => {
             style={{ left: menuPos.x, top: menuPos.y }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            {PET_TYPES.map((t) => (
-              <button
-                key={t}
-                className={petType === t ? "active" : ""}
-                onMouseDown={(e) => switchPet(e, t)}
-              >
-                {t === "cat" ? "猫咪" : t === "dog" ? "小狗" : "企鹅"}
-              </button>
-            ))}
+            <button onMouseDown={openDailyPapers}>每日论文</button>
+            <button onMouseDown={openTodosWindow}>待办事项</button>
+            <div className="menu-separator" />
+            <button onMouseDown={openControlPanel}>控制面板</button>
+            <button onMouseDown={quitApp}>退出程序</button>
           </div>
         </div>
       )}
