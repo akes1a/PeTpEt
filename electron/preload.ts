@@ -30,6 +30,12 @@ export interface PetPetAPI {
   // ---- 附带功能:每日论文 ----
   /** 用系统默认浏览器打开“每日论文”网页 */
   openDailyPapers(): void;
+  /** 用系统默认浏览器打开 Excalidraw 流程画板 */
+  openFlowBoard(): void;
+  /** 用系统默认浏览器打开 ChatGPT */
+  openChatGPT(): void;
+  /** 用系统默认浏览器打开 DeepSeek */
+  openDeepSeek(): void;
 
   // ---- 附带功能:待办事项(纯文本) ----
   /** 读取全部待办 */
@@ -87,6 +93,12 @@ const api: PetPetAPI = {
   },
 
   openDailyPapers: () => ipcRenderer.send("open-daily-papers"),
+
+  openFlowBoard: () => ipcRenderer.send("open-flow-board"),
+
+  openChatGPT: () => ipcRenderer.send("open-chatgpt"),
+
+  openDeepSeek: () => ipcRenderer.send("open-deepseek"),
 
   getTodos: () => ipcRenderer.invoke("get-todos"),
 

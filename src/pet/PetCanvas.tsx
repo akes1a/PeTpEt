@@ -223,8 +223,8 @@ const PetCanvas: React.FC = () => {
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const menuW = 120;
-    const menuH = 148;
+    const menuW = 184;
+    const menuH = 178;
     const winW = 200;
     const winH = 200;
     let mx = e.clientX;
@@ -236,10 +236,28 @@ const PetCanvas: React.FC = () => {
     setMenuPos({ x: mx, y: my });
   }, []);
 
-  // 附带功能入口(每日论文走系统浏览器,待办事项另开窗口)
+  // 附带功能入口(外部工具走系统浏览器,待办事项另开窗口)
   const openDailyPapers = useCallback(() => {
     setMenuPos(null);
     window.petpet?.openDailyPapers();
+    window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
+
+  const openFlowBoard = useCallback(() => {
+    setMenuPos(null);
+    window.petpet?.openFlowBoard();
+    window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
+
+  const openChatGPT = useCallback(() => {
+    setMenuPos(null);
+    window.petpet?.openChatGPT();
+    window.petpet?.setIgnoreMouseEvents(true);
+  }, []);
+
+  const openDeepSeek = useCallback(() => {
+    setMenuPos(null);
+    window.petpet?.openDeepSeek();
     window.petpet?.setIgnoreMouseEvents(true);
   }, []);
 
@@ -304,8 +322,13 @@ const PetCanvas: React.FC = () => {
             style={{ left: menuPos.x, top: menuPos.y }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <button onMouseDown={openDailyPapers}>每日论文</button>
-            <button onMouseDown={openTodosWindow}>待办事项</button>
+            <div className="tool-menu-grid">
+              <button onMouseDown={openDailyPapers}>每日论文</button>
+              <button onMouseDown={openTodosWindow}>待办事项</button>
+              <button onMouseDown={openFlowBoard}>流程画板</button>
+              <button onMouseDown={openChatGPT}>GPT</button>
+              <button onMouseDown={openDeepSeek}>DeepSeek</button>
+            </div>
             <div className="menu-separator" />
             <button onMouseDown={openControlPanel}>控制面板</button>
             <button onMouseDown={quitApp}>退出程序</button>

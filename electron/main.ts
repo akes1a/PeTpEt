@@ -30,6 +30,11 @@ const DEV_SERVER = "http://localhost:5173";
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 /** “每日论文”网页(浏览器打开) */
 const DAILY_PAPERS_URL = "https://akes1a.github.io/daily-arXiv-ai-enhanced/";
+/** “流程画板”网页(浏览器打开) */
+const FLOW_BOARD_URL = "https://excalidraw.com/";
+/** AI 助手网页(浏览器打开) */
+const CHATGPT_URL = "https://chatgpt.com/";
+const DEEPSEEK_URL = "https://chat.deepseek.com/";
 
 let petWindow: BrowserWindow | null = null;
 let panelWindow: BrowserWindow | null = null;
@@ -244,6 +249,9 @@ function updateTrayMenu(): void {
       { type: "separator" },
       { label: "待办事项", click: openTodosWindow },
       { label: "每日论文", click: () => void shell.openExternal(DAILY_PAPERS_URL) },
+      { label: "流程画板", click: () => void shell.openExternal(FLOW_BOARD_URL) },
+      { label: "GPT", click: () => void shell.openExternal(CHATGPT_URL) },
+      { label: "DeepSeek", click: () => void shell.openExternal(DEEPSEEK_URL) },
       { type: "separator" },
       { label: "控制面板", click: openControlPanel },
       { type: "separator" },
@@ -297,9 +305,21 @@ function registerIpc(): void {
     return applyConfigChange(patch ?? {});
   });
 
-  // ---- 附带功能:每日论文(浏览器打开) / 待办事项 ----
+  // ---- 附带功能:外部网页 / 待办事项 ----
   ipcMain.on("open-daily-papers", () => {
     void shell.openExternal(DAILY_PAPERS_URL);
+  });
+
+  ipcMain.on("open-flow-board", () => {
+    void shell.openExternal(FLOW_BOARD_URL);
+  });
+
+  ipcMain.on("open-chatgpt", () => {
+    void shell.openExternal(CHATGPT_URL);
+  });
+
+  ipcMain.on("open-deepseek", () => {
+    void shell.openExternal(DEEPSEEK_URL);
   });
 
   ipcMain.handle("get-todos", () => getTodos());
