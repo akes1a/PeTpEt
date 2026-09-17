@@ -18,6 +18,12 @@ export interface PetPetAPI {
   setIgnoreMouseEvents(ignore: boolean): void;
   /** 获取宠物窗口位置 */
   getWindowPosition(): Promise<[number, number]>;
+  /** 菜单打开时启用桌面其它区域的点击捕获层 */
+  setContextMenuOpen(open: boolean): void;
+  /** 点击捕获层请求关闭宠物菜单 */
+  requestContextMenuDismiss(): void;
+  /** 订阅来自桌面点击捕获层的菜单关闭事件 */
+  onDismissContextMenu(callback: () => void): () => void;
 
   // ---- 全局配置(形象 / 后台运行 / 开机自启) ----
   /** 读取当前配置 */
@@ -76,6 +82,20 @@ const api: PetPetAPI = {
 
   getWindowPosition: () => {
     return ipcRenderer.invoke("get-window-position");
+  },
+
+  setContextMenuOpen: (open: boolean) => {
+    ipcRenderer.send("set-context-menu-open", open);
+  },
+
+  requestContextMenuDismiss: () => {
+    ipcRenderer.send("request-context-menu-dismiss");
+  },
+
+  onDismissContextMenu: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("dismiss-context-menu", handler);
+    return () => ipcRenderer.removeListener("dismiss-context-menu", handler);
   },
 
   getConfig: () => ipcRenderer.invoke("get-config"),

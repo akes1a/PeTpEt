@@ -16,7 +16,7 @@ import {
   screen,
   shell,
 } from "electron";
-import type { NativeImage } from "electron";
+import type { NativeImage, Rectangle } from "electron";
 import * as path from "path";
 import { getConfig, loadConfig, updateConfig } from "./config";
 import type { AppConfig, ConfigPatch } from "./config";
@@ -40,6 +40,7 @@ let petWindow: BrowserWindow | null = null;
 let panelWindow: BrowserWindow | null = null;
 let todosWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let menuDismissWindows: BrowserWindow[] = [];
 
 // ==================== 图标 ====================
 
@@ -119,6 +120,7 @@ function createPetWindow(): BrowserWindow {
   }
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.on("closed", () => {
+    closeMenuDismissWindows();
     if (petWindow === win) petWindow = null;
   });
   return win;
@@ -132,6 +134,7 @@ function showPetWindow(): void {
 }
 
 function hidePetWindow(): void {
+  closeMenuDismissWindows();
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.hide();
   }
@@ -139,6 +142,100 @@ function hidePetWindow(): void {
   if (!getConfig().backgroundRunning && !isPanelVisible()) {
     app.quit();
   }
+}
+
+// ==================== 右键菜单全屏点击取消 ====================
+
+const MENU_DISMISS_PAGE = `data:text/html;charset=UTF-8,${encodeURIComponent(`
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>html, body { width: 100%; height: 100%; margin: 0; background: transparent; }</style>
+  </head>
+  <body>
+    <script>
+      document.addEventListener("mousedown", (event) => {
+        if (event.button === 0) window.petpet.requestContextMenuDismiss();
+      });
+    </script>
+  </body>
+</html>
+`)}`;
+
+function getDesktopBounds(): Rectangle {
+  const displays = screen.getAllDisplays();
+  const left = Math.min(...displays.map((display) => display.bounds.x));
+  const top = Math.min(...displays.map((display) => display.bounds.y));
+  const right = Math.max(...displays.map((display) => display.bounds.x + display.bounds.width));
+  const bottom = Math.max(...displays.map((display) => display.bounds.y + display.bounds.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+/** 将整个桌面切成宠物窗口四周的矩形，留下宠物自身区域供菜单正常交互。 */
+function getOutsidePetBounds(desktop: Rectangle, pet: Rectangle): Rectangle[] {
+  const desktopRight = desktop.x + desktop.width;
+  const desktopBottom = desktop.y + desktop.height;
+  const petLeft = Math.max(desktop.x, pet.x);
+  const petTop = Math.max(desktop.y, pet.y);
+  const petRight = Math.min(desktopRight, pet.x + pet.width);
+  const petBottom = Math.min(desktopBottom, pet.y + pet.height);
+
+  if (petLeft >= petRight || petTop >= petBottom) return [desktop];
+
+  return [
+    { x: desktop.x, y: desktop.y, width: desktop.width, height: petTop - desktop.y },
+    { x: desktop.x, y: petBottom, width: desktop.width, height: desktopBottom - petBottom },
+    { x: desktop.x, y: petTop, width: petLeft - desktop.x, height: petBottom - petTop },
+    { x: petRight, y: petTop, width: desktopRight - petRight, height: petBottom - petTop },
+  ].filter((bounds) => bounds.width > 0 && bounds.height > 0);
+}
+
+function closeMenuDismissWindows(): void {
+  const windows = menuDismissWindows;
+  menuDismissWindows = [];
+  for (const win of windows) {
+    if (!win.isDestroyed()) win.destroy();
+  }
+}
+
+function openMenuDismissWindows(): void {
+  closeMenuDismissWindows();
+  if (!petWindow || petWindow.isDestroyed()) return;
+
+  const outsideBounds = getOutsidePetBounds(getDesktopBounds(), petWindow.getBounds());
+  for (const bounds of outsideBounds) {
+    const win = new BrowserWindow({
+      ...bounds,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      movable: false,
+      hasShadow: false,
+      backgroundColor: "#00000000",
+      webPreferences: {
+        preload: path.join(__dirname, "preload.cjs"),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    menuDismissWindows.push(win);
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    win.on("closed", () => {
+      menuDismissWindows = menuDismissWindows.filter((candidate) => candidate !== win);
+    });
+    void win.loadURL(MENU_DISMISS_PAGE).then(() => {
+      if (!win.isDestroyed()) win.showInactive();
+    });
+  }
+
+  // 捕获层与宠物不重叠；再次置顶可确保菜单维持在最前方。
+  petWindow.moveTop();
 }
 
 function isPanelVisible(): boolean {
@@ -295,6 +392,19 @@ function registerIpc(): void {
     petWindow?.setIgnoreMouseEvents(Boolean(ignore), { forward: true });
   });
 
+  ipcMain.on("set-context-menu-open", (event, open: boolean) => {
+    if (!petWindow || event.sender !== petWindow.webContents) return;
+    if (open) openMenuDismissWindows();
+    else closeMenuDismissWindows();
+  });
+
+  ipcMain.on("request-context-menu-dismiss", (event) => {
+    const isDismissWindow = menuDismissWindows.some((win) => win.webContents === event.sender);
+    if (!isDismissWindow) return;
+    closeMenuDismissWindows();
+    petWindow?.webContents.send("dismiss-context-menu");
+  });
+
   ipcMain.handle("get-window-position", () => {
     return petWindow?.getPosition() ?? [0, 0];
   });
@@ -396,6 +506,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  closeMenuDismissWindows();
   tray?.destroy();
   tray = null;
 });

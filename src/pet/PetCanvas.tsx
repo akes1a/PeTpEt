@@ -97,6 +97,20 @@ const PetCanvas: React.FC = () => {
     return () => cancelAnimationFrame(rafRef.current);
   }, [animationLoop]);
 
+  useEffect(() => {
+    window.petpet?.setContextMenuOpen(menuPos !== null);
+    return () => {
+      if (menuPos !== null) window.petpet?.setContextMenuOpen(false);
+    };
+  }, [menuPos]);
+
+  useEffect(() => {
+    return window.petpet?.onDismissContextMenu(() => {
+      setMenuPos(null);
+      window.petpet?.setIgnoreMouseEvents(true);
+    });
+  }, []);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const state = animRef.current;
